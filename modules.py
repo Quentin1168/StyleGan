@@ -23,7 +23,7 @@ class adaIN(nn.Module):
         
     """
     Instance Normalisation normalises independent of sample and channel.
-    Based on equation 5 of the paper.
+    Based on equation 5 and 6 of the paper.
     """
     def spatial_mean(self, x):
         
@@ -55,7 +55,10 @@ class adaIN(nn.Module):
        
        return std
 
+    def forward(self, x, y):
+        return (self.spatial_std(y)*((x.permute([2,3,0,1]) 
+                                      - self.spatial_mean(x))/
+                                     self.spatial_std(x)) \
+                + self.spatial_mean(y)).permute([2,3,0,1])
     
     
-    
-
