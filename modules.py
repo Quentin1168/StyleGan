@@ -55,11 +55,11 @@ class adaIN(nn.Module):
        
        return std
 
-    def forward(self, x, y_scale, y_shift):
-        return (y_scale*((x.permute([2,3,0,1]) 
+    def forward(self, x, y):
+        return (self.spatial_std(y)*((x.permute([2,3,0,1]) 
                                       - self.spatial_mean(x))/
                                      self.spatial_std(x)) \
-                + y_shift).permute([2,3,0,1])
+                + self.spatial_mean(y)).permute([2,3,0,1])
     
 
 class z_to_w(nn.Module):
@@ -117,33 +117,48 @@ class FCLayer(nn.Module):
 
 class SynthLayer(nn.Module):
     
-    def __init__(self, in_ch, out_ch, hidn_ch, scale = True, first = False):
+    def __init__(self, in_ch, out_ch, hidn_ch, lat_in_ch, lat_out_ch, scale = True, first = False):
         super().__init__()
-
+        self.const = torch.zeros(in_ch)
         conv_list = []
-        if first == True:
-            self.conv1 = nn.Conv2d(in_ch, in_ch, kernel_size=3, 
-                                   stride=1, padding=1)
-            self.conv2 = nn.Conv2d(in_ch, in_ch, kernel_size=3,
-                               stride=1, padding=1)
-            conv_list.append(self.conv1)
-            conv_list.append(self.conv2)
-        else:
-            self.conv1 = nn.Conv2d(in_ch, hidn_ch, kernel_size=3, 
-                               stride=1, padding=1)
-            self.conv2 = nn.Conv2d(hidn_ch, out_ch, kernel_size=3,
-                               stride=1, padding=1)
-            conv_list.append(self.conv1)
-            conv_list.append(self.conv2)
+        self.first = first
+   
+        self.lat_in_ch = lat_in_ch
+       
+        self.conv1 = nn.Conv2d(in_ch, hidn_ch, kernel_size=3, 
+                           stride=1, padding=1)
+        self.conv2 = nn.Conv2d(hidn_ch, out_ch, kernel_size=3,
+                           stride=1, padding=1)
+
         self.scale = scale
         self.gen_noise = torch.randn_like
         self.upsample = F.interpolate #learnt upsample
         self.noise_factor = 0.01
         
-    
-    
+        self.adaIN1 = adaIN()
+        self.adaIN2 = adaIN()
+        self.A = A(in_ch, out_ch, hidn_ch)
+        self.z_w = z_to_w(lat_in_ch, lat_out_ch)
         
+    def forward(self, z, x):
+        if self.first = False:
+            w = self.z_w(z)
+            w = self.A(w)
+            x = self.conv1(x)
+            x = x + self.gen_noise
+            x = self.adaIN1(x,w)
+            
+            x = self.conv2(x)
+            x = x + self.gen_noise
+            x = self.adaIN2(x,w)
         
-        
-    
+        else:
+            w = self.z_w(z)
+            w = self.A(w)
+            x = x + self.gen_noise
+            x = self.adaIN1(x,w)
+            x = self.conv1(x)
+            x = x + self.gen_noise
+            x = self.adaIN2(x, w)
+        return x
         
