@@ -192,9 +192,31 @@ class Generator(nn.Module):
                 w2 = A2(w2)
                 x = self.adaIN2(x, w2)
             return x
+    
+    class MainStruct(nn.Module):
         
-# self.A = self.A(in_ch, out_ch, hidn_ch)
-# self.z_w = self.z_to_w(lat_in_ch, lat_out_ch)
-
-#w = self.z_w(z)
-#w = self.A(w)
+        def __init__(self, in_ch, res):
+            super().__init__()
+            self.in_ch = in_ch
+            self.res = res
+            self.layers = []
+            
+            self.layers.append(Generator.SynthLayer(self.in_ch, self.in_ch, self.in_ch*2, first = True))
+            self.ex_ch =self.in_ch*2
+           # for i in range(0, self.res):
+                
+            #    self.layers.append(Generator.SynthLayer(ex_ch, ex_ch, ex_ch*2))
+            #    ex_ch = ex_ch * 2
+            
+            self.mapping = Generator.z_to_w(512, 512)
+        
+        def add_block(self):
+            self.layers.append(Generator.SynthLayer(self.ex_ch, self.ex_ch, self.ex_ch *2))
+            self.ex_ch *= 2
+        
+class Discriminator(nn.Module):
+    
+    def __init__(self, in_ch, out_ch, hidn_ch, alpha):
+        super().__init__()
+    
+    
