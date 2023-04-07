@@ -224,10 +224,59 @@ class Generator(nn.Module):
         
         return self.fade_in(alpha, up_final, out_final)
     
-    
+
+
+class DiscLayer(nn.Module):
+    def __init__(self, in_ch, out_ch, hidn_ch, first = False):
+        super(DiscLayer, self).__init__()
+        self.first = first
+        if self.first == True:
+            self.conv1 = WS(nn.Conv2d(in_ch + 1, hidn_ch, kernel_size = 3,
+                                      padding = 1))
+            self.conv2 = WS(nn.Conv2d(hidn_ch, hidn_ch, kernel_size = 4,
+                                      padding = 0, stride = 1))
+            
+            self.conv3 = WS(nn.Conv2d(hidn_ch, out_ch, kernel_size = 1, 
+                                      padding = 0, stride = 1))
+            
+        else:
+            
+            self.conv1 = WS(nn.Conv2d(in_ch, hidn_ch))
+            self.conv2 = WS(nn.Conv2d(hidn_ch, out_ch))
+            self.conv3 = None
+        
+        
+    def forward(self, x):
+        
+        if self.first == True:
+            x = nn.ReLU(self.conv1(x))
+            x = nn.ReLU(self.conv2(x))
+            x = nn.ReLU(self.conv3(x))
+        else:
+            x = nn.ReLU(self.conv1(x))
+            x = nn.ReLU(self.conv2(x))
+        
+        return x
+        
 class Discriminator(nn.Module):
     
-    def __init__(self, in_ch, out_ch, hidn_ch, alpha):
-        super().__init__()
-    
-    
+    def __init__(self, in_ch, img_ch = 3):
+        super(Discriminator, self).__init__()
+        
+        self.prog_blocks = nn.ModuleList([])
+        
+        self.rgb_layers = nn.ModuleList([])
+        
+        for i in range(len(factors) - 1, 0, -1):
+            conv_in = int(in_ch * factors[i])
+            conv_out = int(in_ch * factors[i-1])
+            
+            self.prog_blocks.append(DiscLayer(conv_in, conv_out, conv_out))
+            self.rgb_layers.append(WS(nn.Conv2d(img_ch, in_ch, kernel_size=1, 
+                                                stride = 1, padding = 0)))
+            
+        self.rgb_layers.append(WS(nn.Conv2d(img_ch, in_ch, kernel_size = 1,
+                                      stride = 1, padding = 0)))
+        self.downsample = nn.AvgPool2d(kernel_size=2, stride = 2)
+        
+        self.final = DiscLayer(conv_in, conv_in, conv_in, True)
