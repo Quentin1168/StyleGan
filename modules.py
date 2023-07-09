@@ -280,3 +280,65 @@ class Discriminator(nn.Module):
         self.downsample = nn.AvgPool2d(kernel_size=2, stride = 2)
         
         self.final = DiscLayer(conv_in, conv_in, conv_in, True)
+        
+    def fade_in(self, alpha, downscaled, out):
+        
+        return alpha * out + (1 - alpha) * downscaled
+    
+    def minbatch_std(self, x):
+        batch_stat = (torch.std(x, dim=0).mean().repeat(x.shape[0],x, 
+                                                        x.shape[2], x.shape[3]))
+        
+        return torch.cat([x, batch_stat], dim=1)
+    
+    def forward(self, x, alpha, steps):
+        
+        down = self.prog_blocks[0](x)
+        
+        current_step = len(self.prog_blocks) - steps
+        
+        
+        if steps == 0:
+            down = self.rgb_layers[0](down)
+            return down
+        
+        dscaled = \
+            self.leaky(self.rgb_layers[current_step+1](self.downsample(x)))
+        down = self.fade_in(alpha, dscaled, down)
+        for step in range(current_step + 1, len(self.prog_blocks)):
+            down = self.prog_blocks[step](down)
+            
+            down = self.downsample(down)
+            
+        down = self.minbatch_std(down)
+        
+        return self.final_block(down).view(down.shape[0], -1)
+    
+    def loss_function(disc, real, fake, alpha, step, device = "cuda"):
+        
+        BATCH_SIZE, C, H, W = real.shape
+        
+        beta = torch.rand((BATCH_SIZE, 1,1, 1)).repeat(1, C, H, W).to(device)
+        interpolated_img = real * beta + fake.detach()* (1-beta)
+        interpolated_img.requires_grad_(True)
+        
+        mixed_scores = disc(interpolated_img, alpha, step)
+        
+        gradient = torch.autograd.grad(inputs = interpolated_img, outputs
+                                       = mixed_scores, 
+                                       grad_outputs=torch.ones_like(mixed_scores),
+                                       create_graph = True, retain_graph = True)[0]
+        gradient = gradient.view(gradient.shape[0], -1)
+        gradient_norm = gradient.norm(2, dim=1)
+        
+        penalty = torch.mean((gradient_norm - 1)** 2)
+        return penalty
+    
+    
+    
+    
+        
+        
+        
+            
+            
