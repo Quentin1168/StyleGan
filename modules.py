@@ -303,7 +303,7 @@ class Discriminator(nn.Module):
             return down
         
         dscaled = \
-            self.leaky(self.rgb_layers[current_step+1](self.downsample(x)))
+            nn.ReLU(self.rgb_layers[current_step+1](self.downsample(x)))
         down = self.fade_in(alpha, dscaled, down)
         for step in range(current_step + 1, len(self.prog_blocks)):
             down = self.prog_blocks[step](down)

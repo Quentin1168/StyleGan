@@ -11,10 +11,10 @@ device = "cuda" if torch.cuda.is_available() else "cpu"
 class DataLoader(Dataset):
     
     
-    def __init__(self, path):
+    def __init__(self, path, img_size):
         transform = transforms.Compose([transforms.ToTensor(),
                                         transforms.Normalize((0.5,), (0.5,)),
-                                        ])
+                                        transforms.resize((img_size, img_size))])
         
         dataloader = torchvision.datasets.ImageFolder(root = path, 
                                                        transform = transform)
